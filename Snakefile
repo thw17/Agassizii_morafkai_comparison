@@ -51,8 +51,9 @@ rule all:
 			sample=config["samples"], genome=["gopaga2.0"]),
 		expand(
 			"vcf/{comparison}.{genome}.{chunk}.gatk.raw.vcf.gz",
-			comparison=["gmor", "gaga", "all"]
-		)
+			comparison=["gmor", "gaga", "all"],
+			genome=["gopaga2.0"],
+			chunk=chunk_range)
 
 rule prepare_reference:
 	input:
