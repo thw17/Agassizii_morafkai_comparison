@@ -47,7 +47,7 @@ rule all:
 		"multiqc/multiqc_report.html",
 		"multiqc_trimmed/multiqc_report.html",
 		expand(
-			"stats/{sample}.{genome}.dna.mkdup.sorted.bam.stats",
+			"stats/{sample}.{genome}.mkdup.sorted.bam.stats",
 			sample=config["samples"], genome=["gopaga2.0"]),
 		expand(
 			"vcf/{comparison}.{genome}.{chunk}.gatk.raw.vcf.gz",
@@ -128,7 +128,7 @@ rule trim_adapters_paired_bbduk:
 	shell:
 		"{params.bbduksh} -Xmx3g in1={input.fq1} in2={input.fq2} out1={output.out_fq1} out2={output.out_fq2} ref=adapters/{wildcards.sample}.adapters ktrim=r k=21 mink=11 hdist=2 tbo tpe qtrim=rl trimq=10"
 
-rule fastqc_analysis_trimmed_dna:
+rule fastqc_analysis_trimmed:
 	input:
 		"trimmed_fastqs/{sample}_trimmed_{read}.fastq.gz"
 	output:
@@ -138,11 +138,11 @@ rule fastqc_analysis_trimmed_dna:
 	shell:
 		"{params.fastqc} -o fastqc_trimmed {input}"
 
-rule multiqc_analysis_trimmed_dna:
+rule multiqc_analysis_trimmed:
 	input:
 		expand(
 			"fastqc_trimmed/{sample}_trimmed_{read}_fastqc.html",
-			sample=dna, read=["read1", "read2"])
+			sample=config["samples"], read=["read1", "read2"])
 	output:
 		"multiqc_trimmed/multiqc_report.html"
 	params:
@@ -153,8 +153,8 @@ rule multiqc_analysis_trimmed_dna:
 
 rule map_and_process_trimmed_reads:
 	input:
-		fq1 = "trimmed_dna_fastqs/{sample}_trimmed_read1.fastq.gz",
-		fq2 = "trimmed_dna_fastqs/{sample}_trimmed_read2.fastq.gz",
+		fq1 = "trimmed_fastqs/{sample}_trimmed_read1.fastq.gz",
+		fq2 = "trimmed_fastqs/{sample}_trimmed_read2.fastq.gz",
 		amb = "new_reference/{genome}.fasta.amb",
 		ref = "new_reference/{genome}.fasta"
 	output:
@@ -187,12 +187,12 @@ rule index_bam:
 	shell:
 		"{params.samtools} index {input}"
 
-rule bam_stats_dna:
+rule bam_stats:
 	input:
 		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
 		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai"
 	output:
-		"stats/{sample}.{genome}.dna.mkdup.sorted.bam.stats"
+		"stats/{sample}.{genome}.mkdup.sorted.bam.stats"
 	params:
 		samtools = samtools_path
 	shell:
