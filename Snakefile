@@ -221,7 +221,7 @@ rule gatk_combinegvcfs_per_chunk:
 	input:
 		ref = "new_reference/{assembly}.fasta",
 		gvcfs = lambda wildcards: expand(
-			"vcf/{sample}.{wildcards.assembly}.{wildcards.chunk}.g.vcf.gz",
+			"vcf/{sample}.{{assembly}}.{{chunk}}.g.vcf.gz",
 			sample=sample_dict[wildcards.comparison])
 	output:
 		"vcf/{comparison}.{assembly}.{chunk}.gatk.raw.vcf.gz"
