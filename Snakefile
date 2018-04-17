@@ -198,7 +198,6 @@ rule bam_stats:
 	shell:
 		"{params.samtools} stats {input.bam} | grep ^SN | cut -f 2- > {output}"
 
-
 rule gatk_gvcf_per_chunk:
 	input:
 		ref = "new_reference/{genome}.fasta",
