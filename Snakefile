@@ -48,11 +48,11 @@ rule all:
 		"multiqc_trimmed/multiqc_report.html",
 		expand(
 			"stats/{sample}.{genome}.mkdup.sorted.bam.stats",
-			sample=config["samples"], genome=["gopaga2.0"]),
+			sample=config["samples"], genome=["gopaga20"]),
 		expand(
 			"vcf/{comparison}.{genome}.{chunk}.gatk.raw.vcf.gz",
 			comparison=["gmor", "gaga", "all"],
-			genome=["gopaga2.0"],
+			genome=["gopaga20"],
 			chunk=chunk_range)
 
 rule prepare_reference:

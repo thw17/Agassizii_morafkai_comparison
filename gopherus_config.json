@@ -1,6 +1,6 @@
 {
 	"genome_paths": {
-		"gopaga2.0": "reference/GilaMonster_fastas__assembly_pseudohap.fasta"
+		"gopaga20": "reference/GilaMonster_fastas__assembly_pseudohap.fasta"
 	},
 
 	"morafkai": [
