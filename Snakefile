@@ -221,10 +221,10 @@ rule gatk_combinegvcfs_per_chunk:
 	input:
 		ref = "new_reference/{genome}.fasta",
 		gvcfs = lambda wildcards: expand(
-			"vcf/{sample}.{{genome}}.{{chunk}}.g.vcf.gz",
+			"vcf/{sample}.{wildcards.assembly}.{wildcards.chunk}.g.vcf.gz",
 			sample=sample_dict[wildcards.comparison])
 	output:
-		"vcf/{comparison}.{genome}.{chunk}.gatk.raw.vcf.gz"
+		"vcf/{comparison}.{assembly}.{chunk}.gatk.raw.vcf.gz"
 	params:
 		temp_dir = temp_directory,
 		gatk = gatk_path
