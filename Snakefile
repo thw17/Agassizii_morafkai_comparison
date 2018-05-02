@@ -50,7 +50,7 @@ rule all:
 			"stats/{sample}.{genome}.mkdup.sorted.bam.stats",
 			sample=config["samples"], genome=["gopaga20"]),
 		expand(
-			"combined_gvcfs/{comparison}.{assembly}.{chunk}.gatk.combined.g.vcf.gz",
+			"combined_gvcfs/{comparison}.{genome}.{chunk}.gatk.combined.g.vcf.gz",
 			comparison=["gmor", "gaga", "all"],
 			genome=["gopaga20"],
 			chunk=chunk_range)
