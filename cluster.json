@@ -2,5 +2,10 @@
 	"__default__" :
 	{
 		"n": 4
+	},
+
+	"gatk_combinegvcfs_per_chunk" :
+	{
+		"n": 8
 	}
 }

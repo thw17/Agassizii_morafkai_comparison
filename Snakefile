@@ -50,7 +50,7 @@ rule all:
 			"stats/{sample}.{genome}.mkdup.sorted.bam.stats",
 			sample=config["samples"], genome=["gopaga20"]),
 		expand(
-			"vcf/{comparison}.{genome}.{chunk}.gatk.raw.vcf.gz",
+			"combined_gvcfs/{comparison}.{assembly}.{chunk}.gatk.combined.g.vcf.gz",
 			comparison=["gmor", "gaga", "all"],
 			genome=["gopaga20"],
 			chunk=chunk_range)
@@ -205,7 +205,7 @@ rule gatk_gvcf_per_chunk:
 		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
 		chunkfile = "new_reference/{genome}_split_chunk{chunk}.bed"
 	output:
-		"vcf/{sample}.{genome}.{chunk}.g.vcf.gz"
+		"gvcfs/{sample}.{genome}.{chunk}.g.vcf.gz"
 	params:
 		temp_dir = temp_directory,
 		gatk = gatk_path
@@ -225,17 +225,17 @@ rule gatk_combinegvcfs_per_chunk:
 			assembly=[wildcards.assembly],
 			chunk=[wildcards.chunk])
 	output:
-		"vcf/{comparison}.{assembly}.{chunk}.gatk.raw.vcf.gz"
+		"combined_gvcfs/{comparison}.{assembly}.{chunk}.gatk.combined.g.vcf.gz"
 	params:
 		temp_dir = temp_directory,
 		gatk = gatk_path
 	threads:
-		4
+		8
 	run:
 		variant_files = []
 		for i in input.gvcfs:
 			variant_files.append("--variant " + i)
 		variant_files = " ".join(variant_files)
 		shell(
-			"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
+			"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
 			"""CombineGVCFs -R {input.ref} {variant_files} -O {output}""")
