@@ -198,44 +198,78 @@ rule bam_stats:
 	shell:
 		"{params.samtools} stats {input.bam} | grep ^SN | cut -f 2- > {output}"
 
-rule gatk_gvcf_per_chunk:
+rule gatk_gvcf_per_chrom:
 	input:
 		ref = "new_reference/{genome}.fasta",
 		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
-		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
-		chunkfile = "new_reference/{genome}_split_chunk{chunk}.bed"
+		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai"
 	output:
-		"gvcfs/{sample}.{genome}.{chunk}.g.vcf.gz"
+		"gvcfs/{sample}.{genome}.{chrom}.g.vcf.gz"
 	params:
 		temp_dir = temp_directory,
-		gatk = gatk_path
+		gatk = gatk_path,
+		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
 	threads:
 		4
 	shell:
 		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
-		"""HaplotypeCaller -R {input.ref} -I {input.bam} -L {input.chunkfile} """
+		"""HaplotypeCaller -R {input.ref} -I {input.bam} -L "{params.chromosome}" """
 		"""-ERC GVCF -O {output}"""
 
-rule gatk_combinegvcfs_per_chunk:
+rule gatk_genomicsdbimport_per_chrom:
 	input:
-		ref = "new_reference/{assembly}.fasta",
-		gvcfs = lambda wildcards: expand(
-			"gvcfs/{sample}.{assembly}.{chunk}.g.vcf.gz",
+		lambda wildcards: expand(
+			"gvcfs/{sample}.{genome}.{chrom}.g.vcf.gz",
 			sample=sample_dict[wildcards.comparison],
-			assembly=[wildcards.assembly],
-			chunk=[wildcards.chunk])
+			genome=[wildcards.genome],
+			chrom=[wildcards.chrom])
 	output:
-		"combined_gvcfs/{comparison}.{assembly}.{chunk}.gatk.combined.g.vcf.gz"
+		"gvcf_databases/{comparison}_{genome}_{chrom}"
 	params:
 		temp_dir = temp_directory,
-		gatk = gatk_path
-	threads:
-		8
-	run:
-		variant_files = []
-		for i in input.gvcfs:
-			variant_files.append("--variant " + i)
-		variant_files = " ".join(variant_files)
-		shell(
-			"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
-			"""CombineGVCFs -R {input.ref} {variant_files} -O {output}""")
+		gatk = gatk_path,
+		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
+	shell:
+
+
+# rule gatk_gvcf_per_chunk:
+# 	input:
+# 		ref = "new_reference/{genome}.fasta",
+# 		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
+# 		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
+# 		chunkfile = "new_reference/{genome}_split_chunk{chunk}.bed"
+# 	output:
+# 		"gvcfs/{sample}.{genome}.{chunk}.g.vcf.gz"
+# 	params:
+# 		temp_dir = temp_directory,
+# 		gatk = gatk_path
+# 	threads:
+# 		4
+# 	shell:
+# 		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
+# 		"""HaplotypeCaller -R {input.ref} -I {input.bam} -L {input.chunkfile} """
+# 		"""-ERC GVCF -O {output}"""
+#
+# rule gatk_combinegvcfs_per_chunk:
+# 	input:
+# 		ref = "new_reference/{assembly}.fasta",
+# 		gvcfs = lambda wildcards: expand(
+# 			"gvcfs/{sample}.{assembly}.{chunk}.g.vcf.gz",
+# 			sample=sample_dict[wildcards.comparison],
+# 			assembly=[wildcards.assembly],
+# 			chunk=[wildcards.chunk])
+# 	output:
+# 		"combined_gvcfs/{comparison}.{assembly}.{chunk}.gatk.combined.g.vcf.gz"
+# 	params:
+# 		temp_dir = temp_directory,
+# 		gatk = gatk_path
+# 	threads:
+# 		8
+# 	run:
+# 		variant_files = []
+# 		for i in input.gvcfs:
+# 			variant_files.append("--variant " + i)
+# 		variant_files = " ".join(variant_files)
+# 		shell(
+# 			"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
+# 			"""CombineGVCFs -R {input.ref} {variant_files} -O {output}""")
