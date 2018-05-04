@@ -202,7 +202,7 @@ rule create_interval_file_for_genomicsdbimport:
 	input:
 		fai = "new_reference/{genome}.fasta.fai"
 	output:
-		"interval_files/{chrom}_{genome}.bed"
+		temp("interval_files/{chrom}_{genome}.bed")
 	params:
 		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
 	shell:
