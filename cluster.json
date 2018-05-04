@@ -7,5 +7,10 @@
 	"gatk_combinegvcfs_per_chunk" :
 	{
 		"n": 8
+	},
+
+	"gatk_genomicsdbimport_per_chrom" :
+	{
+		"n": 8
 	}
 }
