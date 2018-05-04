@@ -198,11 +198,23 @@ rule bam_stats:
 	shell:
 		"{params.samtools} stats {input.bam} | grep ^SN | cut -f 2- > {output}"
 
+rule create_interval_file_for_genomicsdbimport:
+	input:
+		fai = "new_reference/{assembly}.fasta.fai"
+	output:
+		"interval_files/{chrom}_{genome}.bed"
+	params:
+		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
+	shell:
+		"""python scripts/Create_scaffold_bed_from_fai.py --fai {input.fai} """
+		"""--outfile {output} --scaffold_name {params.chromosome}"""
+
 rule gatk_gvcf_per_chrom:
 	input:
 		ref = "new_reference/{genome}.fasta",
 		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
-		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai"
+		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
+		interval = "interval_files/{chrom}_{genome}.bed"
 	output:
 		"gvcfs/{sample}.{genome}.{chrom}.g.vcf.gz"
 	params:
@@ -213,16 +225,18 @@ rule gatk_gvcf_per_chrom:
 		4
 	shell:
 		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
-		"""HaplotypeCaller -R {input.ref} -I {input.bam} -L "{params.chromosome}" """
+		"""HaplotypeCaller -R {input.ref} -I {input.bam} -L {input.interval} """
 		"""-ERC GVCF -O {output}"""
 
 rule gatk_genomicsdbimport_per_chrom:
 	input:
-		lambda wildcards: expand(
+		gvcfs = lambda wildcards: expand(
 			"gvcfs/{sample}.{genome}.{chrom}.g.vcf.gz",
 			sample=sample_dict[wildcards.comparison],
 			genome=[wildcards.genome],
-			chrom=[wildcards.chrom])
+			chrom=[wildcards.chrom]),
+		ref = "new_reference/{genome}.fasta",
+		interval = "interval_files/{chrom}_{genome}.bed"
 	output:
 		"gvcf_databases/{comparison}-{genome}-{chrom}"
 	params:
@@ -238,7 +252,7 @@ rule gatk_genomicsdbimport_per_chrom:
 		variant_files = " ".join(variant_files)
 		shell(
 			"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
-			"""--genomicsdb-workspace-path {output} -L params.chrom"""
+			"""--genomicsdb-workspace-path {output} -L {input.interval}""""
 			"""GenomicsDBImport -R {input.ref} {variant_files}""")
 
 

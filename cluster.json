@@ -12,5 +12,10 @@
 	"gatk_genomicsdbimport_per_chrom" :
 	{
 		"n": 8
-	}
+	},
+
+	"create_interval_file_for_genomicsdbimport" :
+	{
+		"n": 1
+	},
 }
