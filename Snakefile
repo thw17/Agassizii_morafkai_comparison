@@ -200,7 +200,7 @@ rule bam_stats:
 
 rule create_interval_file_for_genomicsdbimport:
 	input:
-		fai = "new_reference/{assembly}.fasta.fai"
+		fai = "new_reference/{genome}.fasta.fai"
 	output:
 		"interval_files/{chrom}_{genome}.bed"
 	params:
