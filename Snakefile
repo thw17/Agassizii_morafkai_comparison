@@ -50,10 +50,10 @@ rule all:
 			"stats/{sample}.{genome}.mkdup.sorted.bam.stats",
 			sample=config["samples"], genome=["gopaga20"]),
 		expand(
-			"combined_gvcfs/{comparison}.{genome}.{chunk}.gatk.combined.g.vcf.gz",
+			"gvcf_databases/{comparison}_{genome}_{chrom}",
 			comparison=["gmor", "gaga", "all"],
 			genome=["gopaga20"],
-			chunk=chunk_range)
+			chrom=config["scaffolds_no_semi_colon"])
 
 rule prepare_reference:
 	input:
@@ -229,7 +229,17 @@ rule gatk_genomicsdbimport_per_chrom:
 		temp_dir = temp_directory,
 		gatk = gatk_path,
 		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
-	shell:
+	threads:
+		8
+	run:
+		variant_files = []
+		for i in input.gvcfs:
+			variant_files.append("-V " + i)
+		variant_files = " ".join(variant_files)
+		shell(
+			"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
+			"""--genomicsdb-workspace-path {output} -L params.chrom"""
+			"""GenomicsDBImport -R {input.ref} {variant_files}""")
 
 
 # rule gatk_gvcf_per_chunk:
