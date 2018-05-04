@@ -50,7 +50,7 @@ rule all:
 			"stats/{sample}.{genome}.mkdup.sorted.bam.stats",
 			sample=config["samples"], genome=["gopaga20"]),
 		expand(
-			"gvcf_databases/{comparison}_{genome}_{chrom}",
+			"gvcf_databases/{comparison}-{genome}-{chrom}",
 			comparison=["gmor", "gaga", "all"],
 			genome=["gopaga20"],
 			chrom=config["scaffolds_no_semi_colon"])
@@ -224,7 +224,7 @@ rule gatk_genomicsdbimport_per_chrom:
 			genome=[wildcards.genome],
 			chrom=[wildcards.chrom])
 	output:
-		"gvcf_databases/{comparison}_{genome}_{chrom}"
+		"gvcf_databases/{comparison}-{genome}-{chrom}"
 	params:
 		temp_dir = temp_directory,
 		gatk = gatk_path,
