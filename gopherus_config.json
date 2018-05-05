@@ -75,9 +75,9 @@
 	"PM108": {
 		"fq1": "PM108_R1.fastq.gz",
 		"fq2": "PM108_R2.fastq.gz",
-		"ID": "PM10",
-		"SM": "PM10",
-		"LB": "PM10",
+		"ID": "PM108",
+		"SM": "PM108",
+		"LB": "PM108",
 		"PU": "HCVCMBBXX:7",
 		"PL": "Illumina"
 	},
