@@ -207,7 +207,7 @@ rule create_interval_file_for_genomicsdbimport:
 		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
 	shell:
 		"""python scripts/Create_scaffold_bed_from_fai.py --fai {input.fai} """
-		"""--outfile {output} --scaffold_name {params.chromosome}"""
+		"""--outfile {output} --scaffold_name '{params.chromosome}'"""
 
 rule gatk_gvcf_per_chrom:
 	input:
