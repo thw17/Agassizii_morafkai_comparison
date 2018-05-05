@@ -36,3 +36,7 @@ def main():
 	with open(args.outfile, "w") as o:
 		o.write(
 			"{}\t{}\t{}".format(temp_line[0], temp_line[1], temp_line[2]))
+
+
+if __name__ == "__main__":
+	main()
