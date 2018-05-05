@@ -28,7 +28,6 @@ def main():
 	with open(args.fai, "r") as f:
 		reader = csv.reader(f, delimiter="\t")
 		for i in reader:
-			print(i[0])
 			if i[0] == args.scaffold_name:
 				temp_line = [i[0], 0, i[1]]
 				break
