@@ -56,7 +56,7 @@ rule all:
 			genome=["gopaga20"],
 			chrom=config["scaffolds_no_semi_colon"]),
 		expand(
-			"combined_vcfs/{comparison}.{genome}.combined.raw.vcf.gz",
+			"final_vcfs/{comparison}.{genome}.combined.raw.vcf.gz",
 			comparison=["gmor", "gaga", "all"],
 			genome=["gopaga20"])
 
@@ -283,7 +283,7 @@ rule concat_vcfs:
 			genome=wildcards.genome,
 			chrom=config["scaffolds_no_semi_colon"])
 	output:
-		"combined_vcfs/{comparison}.{genome}.combined.raw.vcf.gz"
+		"final_vcfs/{comparison}.{genome}.combined.raw.vcf.gz"
 	params:
 		bcftools = bcftools_path
 	shell:
