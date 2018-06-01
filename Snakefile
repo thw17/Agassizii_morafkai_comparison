@@ -2,6 +2,7 @@ configfile: "gopherus_config.json"
 
 angsd_path = "/home/thwebste/Tools/angsd/angsd"
 bbduksh_path = "bbduk.sh"
+bcftools_path = "bcftools"
 bedtools_path = "bedtools"
 bwa_path = "bwa"
 fastqc_path = "fastqc"
@@ -53,7 +54,11 @@ rule all:
 			"gvcf_databases/{comparison}-{genome}-{chrom}",
 			comparison=["gmor", "gaga", "all"],
 			genome=["gopaga20"],
-			chrom=config["scaffolds_no_semi_colon"])
+			chrom=config["scaffolds_no_semi_colon"]),
+		expand(
+			"combined_vcfs/{comparison}.{genome}.combined.raw.vcf.gz",
+			comparison=["gmor", "gaga", "all"],
+			genome=["gopaga20"])
 
 rule prepare_reference:
 	input:
@@ -255,6 +260,34 @@ rule gatk_genomicsdbimport_per_chrom:
 			"""GenomicsDBImport -R {input.ref} {variant_files} """
 			"""--genomicsdb-workspace-path {output} -L {input.interval}""")
 
+rule gatk_genotypegvcf_genomicsdb:
+	input:
+		gvcf = "gvcf_databases/{comparison}-{genome}-{chrom}",
+		ref = "new_reference/{genome}.fasta"
+	output:
+		"vcfs/{comparison}.{genome}.{chrom}.raw.vcf.gz"
+	params:
+		temp_dir = temp_directory,
+		gatk = gatk_path
+	threads:
+		8
+	shell:
+		"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
+		"""GenotypeGVCFs -R {input.ref} -V gendb://{input.gvcf} -O {output}"""
+
+rule concat_vcfs:
+	input:
+		vcfs = lambda wildcards: expand(
+			"vcfs/{comparison}.{genome}.{chrom}.raw.vcf.gz",
+			comparison=wildcards.comparison,
+			genome=wildcards.genome,
+			chrom=config["scaffolds_no_semi_colon"])
+	output:
+		"combined_vcfs/{comparison}.{genome}.combined.raw.vcf.gz"
+	params:
+		bcftools = bcftools_path
+	shell:
+		"{params.bcftools} concat -o {output} -Oz {input.vcfs}"
 
 # rule gatk_gvcf_per_chunk:
 # 	input:

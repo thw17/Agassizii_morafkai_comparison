@@ -17,5 +17,15 @@
 	"create_interval_file_for_genomicsdbimport" :
 	{
 		"n": 1
+	},
+
+	"gatk_genotypegvcf_genomicsdb" :
+	{
+		"n": 8
+	},
+
+	"concat_vcfs" :
+	{
+		"n": 8
 	}
 }
