@@ -27,5 +27,15 @@
 	"concat_vcfs" :
 	{
 		"n": 8
+	},
+
+	"angsd_by_chom_all_sites" :
+	{
+		"n": 8
+	},
+
+	"ngs_covar_by_chrom" :
+	{
+		"n": 8
 	}
 }

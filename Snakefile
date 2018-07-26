@@ -14,7 +14,7 @@ samblaster_path = "samblaster"
 samtools_path = "samtools"
 
 temp_directory = "temp"
-fastq_directory = "/scratch/thwebste/Gopherus_popgen/fastqs"
+fastq_directory = "/mnt/storage/SAYRES/gopherus/fastqs"
 
 gmor = config["morafkai"]
 gaga = [x for x in config["samples"] if x not in config["morafkai"]]
