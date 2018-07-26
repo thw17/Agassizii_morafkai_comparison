@@ -7,6 +7,7 @@ bedtools_path = "bedtools"
 bwa_path = "bwa"
 fastqc_path = "fastqc"
 gatk_path = "gatk"
+gatk3_path = "/home/thwebste/Tools/GenomeAnalysisTK_38.jar"
 multiqc_path = "multiqc"
 ngscovar_path = "/home/thwebste/Tools/ngsTools/ngsPopGen/ngsCovar"
 samblaster_path = "samblaster"
@@ -48,17 +49,17 @@ rule all:
 		"multiqc/multiqc_report.html",
 		"multiqc_trimmed/multiqc_report.html",
 		expand(
-			"stats/{sample}.{genome}.mkdup.sorted.bam.stats",
-			sample=config["samples"], genome=["gopaga20"]),
-		expand(
-			"gvcf_databases/{comparison}-{genome}-{chrom}",
-			comparison=["gmor", "gaga", "all"],
-			genome=["gopaga20"],
-			chrom=config["scaffolds_no_semi_colon"]),
-		expand(
-			"final_vcfs/{comparison}.{genome}.combined.raw.vcf.gz",
-			comparison=["gmor", "gaga", "all"],
-			genome=["gopaga20"])
+			"stats/{sample}.{genome}.mkdup.sorted.realigned.bam.stats",
+			sample=config["samples"], genome=["gopaga20"])
+		# expand(
+		# 	"gvcf_databases/{comparison}-{genome}-{chrom}",
+		# 	comparison=["gmor", "gaga", "all"],
+		# 	genome=["gopaga20"],
+		# 	chrom=config["scaffolds_no_semi_colon"]),
+		# expand(
+		# 	"final_vcfs/{comparison}.{genome}.combined.raw.vcf.gz",
+		# 	comparison=["gmor", "gaga", "all"],
+		# 	genome=["gopaga20"])
 
 rule prepare_reference:
 	input:
@@ -192,12 +193,49 @@ rule index_bam:
 	shell:
 		"{params.samtools} index {input}"
 
-rule bam_stats:
+rule gatk_indel_target_creator:
 	input:
 		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
-		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai"
+		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
+		ref = "new_reference/{genome}.fasta"
 	output:
-		"stats/{sample}.{genome}.mkdup.sorted.bam.stats"
+		"indel_targets/{sample}.{genome}.intervals"
+	params:
+		gatk3 = gatk3_path
+	shell:
+		"java -jar -Xmx12g {params.gatk3} -T RealignerTargetCreator "
+		"-R {input.ref} -I {input.bam} -o {output}"
+
+rule gatk_indel_realignment:
+	input:
+		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
+		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
+		ref = "new_reference/{genome}.fasta",
+		indels = "indel_targets/{sample}.{genome}.intervals"
+	output:
+		"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam"
+	params:
+		gatk3 = gatk3_path
+	shell:
+		"java -jar -Xmx12g {params.gatk3} -T IndelRealigner "
+		"-R {input.ref} -I {input.bam} -targetIntervals {input.indels} -o {output}"
+
+rule index_realigned_bam:
+	input:
+		"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam"
+	output:
+		"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam.bai"
+	params:
+		samtools = samtools_path
+	shell:
+		"{params.samtools} index {input}"
+
+rule bam_stats:
+	input:
+		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam",
+		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam.bai"
+	output:
+		"stats/{sample}.{genome}.mkdup.sorted.realigned.bam.stats"
 	params:
 		samtools = samtools_path
 	shell:
