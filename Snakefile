@@ -50,7 +50,8 @@ rule all:
 		"multiqc_trimmed/multiqc_report.html",
 		expand(
 			"stats/{sample}.{genome}.mkdup.sorted.realigned.bam.stats",
-			sample=config["samples"], genome=["gopaga20"])
+			sample=config["samples"], genome=["gopaga20"]),
+		"angsd_results/all_angsd_CONCATENATED.covar"
 		# expand(
 		# 	"gvcf_databases/{comparison}-{genome}-{chrom}",
 		# 	comparison=["gmor", "gaga", "all"],
@@ -240,6 +241,101 @@ rule bam_stats:
 		samtools = samtools_path
 	shell:
 		"{params.samtools} stats {input.bam} | grep ^SN | cut -f 2- > {output}"
+
+rule create_angsd_bam_list:
+	input:
+		bam = lambda wildcards: expand(
+			"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam",
+			samples=config["samples"],
+			genome=wildcards.scaffold),
+	output:
+		"angsd_results/{genome}_angsd_bam_list.txt"
+	run:
+		shell("echo -n > {output}")
+		for i in input.bam:
+			shell("echo {} >> {{output}}".format(i))
+
+rule angsd_by_chom_all_sites:
+	input:
+		bam = lambda wildcards: expand(
+			"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam",
+			samples=config["samples"],
+			genome=wildcards.scaffold),
+		bai = expand(
+			"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam.bai",
+			samples=config["samples"],
+			genome=wildcards.scaffold),
+		bam_list = "angsd_results/{genome}_angsd_bam_list.txt"
+	output:
+		geno = "angsd_results/gaga_gmor_angsd_{scaffold}.geno.gz",
+		maf = "angsd_results/gaga_gmor_angsd_{scaffold}.mafs.gz"
+	params:
+		angsd = angsd_path,
+		full_scaffold_name = lambda wildcards: config["scaffold_dict"][wildcards.scaffold],
+		ninds = len(config["samples"]),
+		minind = 10,
+		mindepth = 40
+	threads:
+		8
+	shell:
+		"{params.angsd} -bam {input.bam_list} -GL 1 "
+		"-out angsd_results/gaga_gmor_angsd_{wildcards.scaffold} -P {threads} "
+		"-doMaf 1 -doMajorMinor 1 -doGeno 32 -doPost 1 -nind {params.nind} "
+		"-minMapQ 20 -minQ 20 -minInd {params.minind} -skipTriallelic 1"
+		"-setMinDepth {params.mindepth} -r '{params.full_scaffold_name}':"
+
+rule gunzip_angsd_mafs:
+	input:
+		"angsd_results/gaga_gmor_angsd_{scaffold}.mafs.gz"
+	output:
+		"angsd_results/gaga_gmor_angsd_{scaffold}.mafs"
+	shell:
+		"gunzip {input}"
+
+rule gunzip_angsd_geno:
+	input:
+		"angsd_results/gaga_gmor_angsd_{scaffold}.geno.gz"
+	output:
+		temp("angsd_results/gaga_gmor_angsd_{scaffold}.geno")
+	shell:
+		"gunzip {input}"
+
+rule concat_angsd_geno:
+	input:
+		expand(
+			"angsd_results/gaga_gmor_angsd_{scaffold}.geno",
+			scaffold=scaffolds_to_analyze)
+	output:
+		"angsd_results/all_angsd_CONCATENATED.geno"
+	shell:
+		"cat {input} > {output}"
+
+rule combine_angsd_mafs:
+	input:
+		expand(
+			"angsd_results/gaga_gmor_angsd_{scaffold}.mafs",
+			scaffold=scaffolds_to_analyze)
+	output:
+		"angsd_results/all_angsd_CONCATENATED.mafs"
+	run:
+		first = input[0]
+		shell(
+			"zcat {first} | head -n 1 > {output} && "
+			"awk 'FNR-1' {input} >> {output}")
+
+rule ngs_covar_by_chrom:
+	input:
+		geno = "angsd_results/all_angsd_CONCATENATED.geno",
+		mafs = "angsd_results/all_angsd_CONCATENATED.mafs"
+	output:
+		"angsd_results/all_angsd_CONCATENATED.covar"
+	params:
+		ngscovar = ngscovar_path,
+		ninds = len(config["samples"]),
+	shell:
+		"{params.ngscovar} -probfile {input.geno} -outfile {output} "
+		"-nsites $(tail -n +2 {input.mafs}) -nind {params.ninds} -call 0 -norm 0 "
+		"-block_size 100000 -minmaf 0.01"
 
 rule create_interval_file_for_genomicsdbimport:
 	input:

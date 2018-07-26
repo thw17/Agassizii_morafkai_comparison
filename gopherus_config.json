@@ -27,10 +27,7 @@
 		"WSB50",
 		"WSB57",
 		"WSB77",
-		"HSEM022E",
 		"HSEM022F",
-		"HSEM014h",
-		"HSEM018f",
 		"HSEM019f",
 		"HSEM021C",
 		"HSEM012f",
@@ -38,10 +35,16 @@
 		"HSEM016f",
 		"HSEM014e",
 		"HSEM004f",
-		"HSEM013f",
 		"HSEM008f",
-		"HSEM005f",
-		"HSEM013b"
+		"HSEM005f"
+	],
+
+	"aga_alternates": [
+		"HSEM013b",
+		"HSEM013f",
+		"HSEM014h",
+		"HSEM018f",
+		"HSEM022E"
 	],
 
 	"to_merge": {
