@@ -1,21 +1,26 @@
 configfile: "gopherus_config.json"
 
+# These paths will need to be changed (also check reference path in gopherus_config.json)
+
 angsd_path = "/home/thwebste/Tools/angsd/angsd"
-bbduksh_path = "bbduk.sh"
-bcftools_path = "bcftools"
-bedtools_path = "bedtools"
-bwa_path = "bwa"
-fastqc_path = "fastqc"
-gatk_path = "gatk"
 gatk3_path = "/home/thwebste/Tools/GenomeAnalysisTK_38.jar"
-multiqc_path = "multiqc"
 ngscovar_path = "/home/thwebste/Tools/ngsTools/ngsPopGen/ngsCovar"
-samblaster_path = "samblaster"
-samtools_path = "samtools"
 
 temp_directory = "temp"
 fastq_directory = "/mnt/storage/SAYRES/gopherus/fastqs"
 
+# These paths assume you've set up a Conda environment; change if not
+bbduksh_path = "bbduk.sh"
+# bcftools_path = "bcftools"
+bedtools_path = "bedtools"
+bwa_path = "bwa"
+fastqc_path = "fastqc"
+# gatk_path = "gatk"
+multiqc_path = "multiqc"
+samblaster_path = "samblaster"
+samtools_path = "samtools"
+
+# Organize sample lists
 gmor = config["morafkai"]
 gaga = [x for x in config["samples"] if x not in config["morafkai"]]
 
@@ -25,6 +30,7 @@ fastq_prefixes = [
 	config[x]["fq1"][:-9] for x in config["samples"]] + [
 		config[x]["fq2"][:-9] for x in config["samples"]]
 
+# Chunk up genome
 gaga_chunks = {
 	"agassizii_1": gaga[:50],
 	"agassizii_2": gaga[50:100],
@@ -38,12 +44,14 @@ gaga_chunks_list = [
 	"agassizii_3", "agassizii_4",
 	"agassizii_5", "agassizii_6"]
 
-scaffolds_to_analyze = ["ScCC6lQ_16796", "ScCC6lQ_161298"]
-
 # Reference chunks
 num_chunks = 15
 chunk_range = [x for x in range(1, num_chunks + 1)]
 
+# Set chromosomes to analyze
+scaffolds_to_analyze = ["ScCC6lQ_16796", "ScCC6lQ_161298"]
+
+# Pipeline
 rule all:
 	input:
 		"multiqc/multiqc_report.html",
@@ -337,91 +345,91 @@ rule ngs_covar_by_chrom:
 		"-nsites $(tail -n +2 {input.mafs}) -nind {params.ninds} -call 0 -norm 0 "
 		"-block_size 100000 -minmaf 0.01"
 
-rule create_interval_file_for_genomicsdbimport:
-	input:
-		fai = "new_reference/{genome}.fasta.fai"
-	output:
-		temp("interval_files/{chrom}_{genome}.bed")
-	params:
-		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
-	shell:
-		"""python scripts/Create_scaffold_bed_from_fai.py --fai {input.fai} """
-		"""--outfile {output} --scaffold_name '{params.chromosome}'"""
-
-rule gatk_gvcf_per_chrom:
-	input:
-		ref = "new_reference/{genome}.fasta",
-		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
-		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
-		interval = "interval_files/{chrom}_{genome}.bed"
-	output:
-		"gvcfs/{sample}.{genome}.{chrom}.g.vcf.gz"
-	params:
-		temp_dir = temp_directory,
-		gatk = gatk_path,
-		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
-	threads:
-		4
-	shell:
-		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
-		"""HaplotypeCaller -R {input.ref} -I {input.bam} -L {input.interval} """
-		"""-ERC GVCF -O {output}"""
-
-rule gatk_genomicsdbimport_per_chrom:
-	input:
-		gvcfs = lambda wildcards: expand(
-			"gvcfs/{sample}.{genome}.{chrom}.g.vcf.gz",
-			sample=sample_dict[wildcards.comparison],
-			genome=[wildcards.genome],
-			chrom=[wildcards.chrom]),
-		ref = "new_reference/{genome}.fasta",
-		interval = "interval_files/{chrom}_{genome}.bed"
-	output:
-		"gvcf_databases/{comparison}-{genome}-{chrom}"
-	params:
-		temp_dir = temp_directory,
-		gatk = gatk_path,
-		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
-	threads:
-		8
-	run:
-		variant_files = []
-		for i in input.gvcfs:
-			variant_files.append("-V " + i)
-		variant_files = " ".join(variant_files)
-		shell(
-			"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
-			"""GenomicsDBImport -R {input.ref} {variant_files} """
-			"""--genomicsdb-workspace-path {output} -L {input.interval}""")
-
-rule gatk_genotypegvcf_genomicsdb:
-	input:
-		gvcf = "gvcf_databases/{comparison}-{genome}-{chrom}",
-		ref = "new_reference/{genome}.fasta"
-	output:
-		"vcfs/{comparison}.{genome}.{chrom}.raw.vcf.gz"
-	params:
-		temp_dir = temp_directory,
-		gatk = gatk_path
-	threads:
-		8
-	shell:
-		"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
-		"""GenotypeGVCFs -R {input.ref} -V gendb://{input.gvcf} -O {output}"""
-
-rule concat_vcfs:
-	input:
-		vcfs = lambda wildcards: expand(
-			"vcfs/{comparison}.{genome}.{chrom}.raw.vcf.gz",
-			comparison=wildcards.comparison,
-			genome=wildcards.genome,
-			chrom=config["scaffolds_no_semi_colon"])
-	output:
-		"final_vcfs/{comparison}.{genome}.combined.raw.vcf.gz"
-	params:
-		bcftools = bcftools_path
-	shell:
-		"{params.bcftools} concat -o {output} -Oz {input.vcfs}"
+# rule create_interval_file_for_genomicsdbimport:
+# 	input:
+# 		fai = "new_reference/{genome}.fasta.fai"
+# 	output:
+# 		temp("interval_files/{chrom}_{genome}.bed")
+# 	params:
+# 		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
+# 	shell:
+# 		"""python scripts/Create_scaffold_bed_from_fai.py --fai {input.fai} """
+# 		"""--outfile {output} --scaffold_name '{params.chromosome}'"""
+#
+# rule gatk_gvcf_per_chrom:
+# 	input:
+# 		ref = "new_reference/{genome}.fasta",
+# 		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
+# 		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
+# 		interval = "interval_files/{chrom}_{genome}.bed"
+# 	output:
+# 		"gvcfs/{sample}.{genome}.{chrom}.g.vcf.gz"
+# 	params:
+# 		temp_dir = temp_directory,
+# 		gatk = gatk_path,
+# 		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
+# 	threads:
+# 		4
+# 	shell:
+# 		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
+# 		"""HaplotypeCaller -R {input.ref} -I {input.bam} -L {input.interval} """
+# 		"""-ERC GVCF -O {output}"""
+#
+# rule gatk_genomicsdbimport_per_chrom:
+# 	input:
+# 		gvcfs = lambda wildcards: expand(
+# 			"gvcfs/{sample}.{genome}.{chrom}.g.vcf.gz",
+# 			sample=sample_dict[wildcards.comparison],
+# 			genome=[wildcards.genome],
+# 			chrom=[wildcards.chrom]),
+# 		ref = "new_reference/{genome}.fasta",
+# 		interval = "interval_files/{chrom}_{genome}.bed"
+# 	output:
+# 		"gvcf_databases/{comparison}-{genome}-{chrom}"
+# 	params:
+# 		temp_dir = temp_directory,
+# 		gatk = gatk_path,
+# 		chromosome = lambda wildcards: config["scaffold_dict"][wildcards.chrom]
+# 	threads:
+# 		8
+# 	run:
+# 		variant_files = []
+# 		for i in input.gvcfs:
+# 			variant_files.append("-V " + i)
+# 		variant_files = " ".join(variant_files)
+# 		shell(
+# 			"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
+# 			"""GenomicsDBImport -R {input.ref} {variant_files} """
+# 			"""--genomicsdb-workspace-path {output} -L {input.interval}""")
+#
+# rule gatk_genotypegvcf_genomicsdb:
+# 	input:
+# 		gvcf = "gvcf_databases/{comparison}-{genome}-{chrom}",
+# 		ref = "new_reference/{genome}.fasta"
+# 	output:
+# 		"vcfs/{comparison}.{genome}.{chrom}.raw.vcf.gz"
+# 	params:
+# 		temp_dir = temp_directory,
+# 		gatk = gatk_path
+# 	threads:
+# 		8
+# 	shell:
+# 		"""{params.gatk} --java-options "-Xmx32g -Djava.io.tmpdir={params.temp_dir}" """
+# 		"""GenotypeGVCFs -R {input.ref} -V gendb://{input.gvcf} -O {output}"""
+#
+# rule concat_vcfs:
+# 	input:
+# 		vcfs = lambda wildcards: expand(
+# 			"vcfs/{comparison}.{genome}.{chrom}.raw.vcf.gz",
+# 			comparison=wildcards.comparison,
+# 			genome=wildcards.genome,
+# 			chrom=config["scaffolds_no_semi_colon"])
+# 	output:
+# 		"final_vcfs/{comparison}.{genome}.combined.raw.vcf.gz"
+# 	params:
+# 		bcftools = bcftools_path
+# 	shell:
+# 		"{params.bcftools} concat -o {output} -Oz {input.vcfs}"
 
 # rule gatk_gvcf_per_chunk:
 # 	input:
