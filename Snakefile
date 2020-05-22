@@ -18,6 +18,7 @@ bbduksh_path = "bbduk.sh"
 bwa_path = "bwa"
 fastqc_path = "fastqc"
 multiqc_path = "multiqc"
+picard_path = "picard"
 samtools_path = "samtools"
 
 # Organize sample lists
