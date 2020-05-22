@@ -284,9 +284,9 @@ rule gatk_indel_realignment:
 
 rule index_realigned_bam:
 	input:
-		"processed_bams/{sample}.{genome}.sorted.mkdup..realigned.bam"
+		"processed_bams/{sample}.{genome}.sorted.mkdup.realigned.bam"
 	output:
-		"processed_bams/{sample}.{genome}.sorted.mkdup..realigned.bam.bai"
+		"processed_bams/{sample}.{genome}.sorted.mkdup.realigned.bam.bai"
 	params:
 		samtools = samtools_path,
 		threads = 4,
