@@ -69,7 +69,7 @@ rule download_reference:
 
 rule prepare_reference:
 	input:
-		ref = "reference/{genome}.fa"
+		ref = "reference/{assembly}.fa"
 	output:
 		fai = "reference/{assembly}.fasta.fai",
 		amb = "reference/{assembly}.fasta.amb",
