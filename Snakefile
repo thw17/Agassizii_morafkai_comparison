@@ -297,8 +297,8 @@ rule index_realigned_bam:
 
 rule bam_stats:
 	input:
-		bam = "processed_bams/{sample}.{genome}.sorted.mkdup..realigned.bam",
-		bai = "processed_bams/{sample}.{genome}.sorted.mkdup..realigned.bam.bai"
+		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.realigned.bam",
+		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.realigned.bam.bai"
 	output:
 		"stats/{sample}.{genome}.mkdup.sorted.realigned.bam.stats"
 	params:
