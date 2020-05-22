@@ -2,54 +2,38 @@ configfile: "gopherus_config.json"
 
 # These paths will need to be changed (also check reference path in gopherus_config.json)
 
-angsd_path = "/home/thwebste/Tools/angsd/angsd"
-gatk3_path = "/home/thwebste/Tools/GenomeAnalysisTK_38.jar"
-ngscovar_path = "/home/thwebste/Tools/ngsTools/ngsPopGen/ngsCovar"
+gatk3_path = "GenomeAnalysisTK_381.jar"
 
 temp_directory = "temp"
-fastq_directory = "/mnt/storage/SAYRES/gopherus/fastqs"
+fastq_directory = "fastqs"
+
+# Runtime values
+very_short = "6:00:00"
+medium = "12:00:00"
+day = "24:00:00"
+long = "48:00:00"
 
 # These paths assume you've set up a Conda environment; change if not
 bbduksh_path = "bbduk.sh"
-# bcftools_path = "bcftools"
-bedtools_path = "bedtools"
 bwa_path = "bwa"
 fastqc_path = "fastqc"
-# gatk_path = "gatk"
 multiqc_path = "multiqc"
-samblaster_path = "samblaster"
 samtools_path = "samtools"
 
 # Organize sample lists
 gmor = config["morafkai"]
-gaga = [x for x in config["samples"] if x not in config["morafkai"]]
+gaga = config["agassizii"]
+gber = config["berlandieri"]
 
-sample_dict = {"gmor": gmor, "gaga": gaga, "all": config["samples"]}
+sample_dict = {"gmor": gmor, "gaga": gaga, "gber": gber, "all": config["samples"]}
 
 fastq_prefixes = [
 	config[x]["fq1"][:-9] for x in config["samples"]] + [
 		config[x]["fq2"][:-9] for x in config["samples"]]
 
-# Chunk up genome
-gaga_chunks = {
-	"agassizii_1": gaga[:50],
-	"agassizii_2": gaga[50:100],
-	"agassizii_3": gaga[100:150],
-	"agassizii_4": gaga[150:200],
-	"agassizii_5": gaga[200:250],
-	"agassizii_6": gaga[250:]}
-
-gaga_chunks_list = [
-	"agassizii_1", "agassizii_2",
-	"agassizii_3", "agassizii_4",
-	"agassizii_5", "agassizii_6"]
-
-# Reference chunks
-num_chunks = 15
-chunk_range = [x for x in range(1, num_chunks + 1)]
 
 # Set chromosomes to analyze
-scaffolds_to_analyze = ["ScCC6lQ_16796", "ScCC6lQ_161298"]
+scaffolds_to_analyze = []
 
 # Pipeline
 rule all:
@@ -59,7 +43,7 @@ rule all:
 		expand(
 			"stats/{sample}.{genome}.mkdup.sorted.realigned.bam.stats",
 			sample=config["samples"], genome=["gopaga20"]),
-		"angsd_results/all_angsd_CONCATENATED.covar"
+		# "angsd_results/all_angsd_CONCATENATED.covar"
 		# expand(
 		# 	"gvcf_databases/{comparison}-{genome}-{chrom}",
 		# 	comparison=["gmor", "gaga", "all"],
@@ -70,41 +54,53 @@ rule all:
 		# 	comparison=["gmor", "gaga", "all"],
 		# 	genome=["gopaga20"])
 
+rule download_reference:
+	output:
+		"reference/{genome}.fa"
+	params:
+		web_address = lambda wildcards: config["fasta_address"][wildcards.genome],
+		output = "reference/{genome}.fa",
+		threads = 1,
+		mem = 4,
+		t = very_short
+	shell:
+		"wget {params.web_address} -O {params.output}"
+
 rule prepare_reference:
 	input:
-		ref = lambda wildcards: config["genome_paths"][wildcards.assembly]
+		ref = "reference/{genome}.fa"
 	output:
-		new = "new_reference/{assembly}.fasta",
-		fai = "new_reference/{assembly}.fasta.fai",
-		amb = "new_reference/{assembly}.fasta.amb",
-		dict = "new_reference/{assembly}.dict"
+		fai = "reference/{assembly}.fasta.fai",
+		amb = "reference/{assembly}.fasta.amb",
+		dict = "reference/{assembly}.dict"
 	params:
 		samtools = samtools_path,
-		bwa = bwa_path
+		bwa = bwa_path,
+		threads = 4,
+		mem = 16,
+		t = medium
 	run:
-		shell(
-			"ln -s ../{} {{output.new}} && touch -h {{output.new}}".format(input.ref))
 		# faidx
 		shell(
-			"{params.samtools} faidx {output.new}")
+			"{params.samtools} faidx {input.ref}")
 		# .dict
 		shell(
-			"{params.samtools} dict -o {output.dict} {output.new}")
+			"{params.samtools} dict -o {output.dict} {input.ref}")
 		# bwa
 		shell(
-			"{params.bwa} index {output.new}")
+			"{params.bwa} index {input.ref}")
 
-rule chunk_reference:
-	input:
-		fai = "new_reference/{assembly}.fasta.fai"
-	output:
-		expand("new_reference/{{assembly}}_split_chunk{num}.bed", num=chunk_range)
-	params:
-		chunks = num_chunks,
-		out_prefix = "new_reference/{assembly}_split"
-	shell:
-		"python scripts/Chunk_fai.py --fai {input.fai} "
-		"--out_prefix {params.out_prefix} --chunks {params.chunks}"
+# rule chunk_reference:
+# 	input:
+# 		fai = "reference/{assembly}.fasta.fai"
+# 	output:
+# 		expand("reference/{{assembly}}_split_chunk{num}.bed", num=chunk_range)
+# 	params:
+# 		chunks = num_chunks,
+# 		out_prefix = "reference/{assembly}_split"
+# 	shell:
+# 		"python scripts/Chunk_fai.py --fai {input.fai} "
+# 		"--out_prefix {params.out_prefix} --chunks {params.chunks}"
 
 rule fastqc_analysis:
 	input:
@@ -112,7 +108,10 @@ rule fastqc_analysis:
 	output:
 		"fastqc/{fq_prefix}_fastqc.html"
 	params:
-		fastqc = fastqc_path
+		fastqc = fastqc_path,
+		threads = 1,
+		mem = 4,
+		t = very_short
 	shell:
 		"{params.fastqc} -o fastqc {input}"
 
@@ -122,7 +121,10 @@ rule multiqc_analysis:
 	output:
 		"multiqc/multiqc_report.html"
 	params:
-		multiqc = multiqc_path
+		multiqc = multiqc_path,
+		threads = 1,
+		mem = 4,
+		t = very_short
 	shell:
 		"export LC_ALL=en_US.UTF-8 && export LANG=en_US.UTF-8 && "
 		"{params.multiqc} -o multiqc fastqc"
@@ -137,11 +139,15 @@ rule trim_adapters_paired_bbduk:
 		out_fq1 = "trimmed_fastqs/{sample}_trimmed_read1.fastq.gz",
 		out_fq2 = "trimmed_fastqs/{sample}_trimmed_read2.fastq.gz"
 	params:
-		bbduksh = bbduksh_path
-	threads:
-		2
+		bbduksh = bbduksh_path,
+		threads = 2,
+		mem = 8,
+		t = very_short
 	shell:
-		"{params.bbduksh} -Xmx3g in1={input.fq1} in2={input.fq2} out1={output.out_fq1} out2={output.out_fq2} ref=adapters/{wildcards.sample}.adapters ktrim=r k=21 mink=11 hdist=2 tbo tpe qtrim=rl trimq=10"
+		"{params.bbduksh} -Xmx3g in1={input.fq1} in2={input.fq2} "
+		"out1={output.out_fq1} out2={output.out_fq2} "
+		"ref=misc/adapter_sequence.fa ktrim=r k=21 mink=11 hdist=2 tbo tpe "
+		"qtrim=rl trimq=10"
 
 rule fastqc_analysis_trimmed:
 	input:
@@ -149,7 +155,10 @@ rule fastqc_analysis_trimmed:
 	output:
 		"fastqc_trimmed/{sample}_trimmed_{read}_fastqc.html"
 	params:
-		fastqc = fastqc_path
+		fastqc = fastqc_path,
+		threads = 1,
+		mem = 4,
+		t = very_short
 	shell:
 		"{params.fastqc} -o fastqc_trimmed {input}"
 
@@ -161,7 +170,10 @@ rule multiqc_analysis_trimmed:
 	output:
 		"multiqc_trimmed/multiqc_report.html"
 	params:
-		multiqc = multiqc_path
+		multiqc = multiqc_path,
+		threads = 1,
+		mem = 4,
+		t = very_short
 	shell:
 		"export LC_ALL=en_US.UTF-8 && export LANG=en_US.UTF-8 && "
 		"{params.multiqc} -o multiqc_trimmed fastqc_trimmed"
@@ -170,10 +182,10 @@ rule map_and_process_trimmed_reads:
 	input:
 		fq1 = "trimmed_fastqs/{sample}_trimmed_read1.fastq.gz",
 		fq2 = "trimmed_fastqs/{sample}_trimmed_read2.fastq.gz",
-		amb = "new_reference/{genome}.fasta.amb",
-		ref = "new_reference/{genome}.fasta"
+		amb = "reference/{genome}.fasta.amb",
+		ref = "reference/{genome}.fasta"
 	output:
-		"processed_bams/{sample}.{genome}.mkdup.sorted.bam"
+		"processed_bams/{sample}.{genome}.sorted.bam"
 	params:
 		id = lambda wildcards: config[wildcards.sample]["ID"],
 		sm = lambda wildcards: config[wildcards.sample]["SM"],
@@ -181,169 +193,215 @@ rule map_and_process_trimmed_reads:
 		pu = lambda wildcards: config[wildcards.sample]["PU"],
 		pl = lambda wildcards: config[wildcards.sample]["PL"],
 		bwa = bwa_path,
-		samblaster = samblaster_path,
 		samtools = samtools_path,
-		threads = 4
-	threads: 4
+		threads = 4,
+		mem = 16,
+		t = long
 	shell:
 		"{params.bwa} mem -t {params.threads} -R "
 		"'@RG\\tID:{params.id}\\tSM:{params.sm}\\tLB:{params.lb}\\tPU:{params.pu}\\tPL:{params.pl}' "
 		"{input.ref} {input.fq1} {input.fq2}"
-		"| {params.samblaster} | {params.samtools} fixmate -O bam - - "
+		"| {params.samtools} fixmate -O bam - - "
 		"| {params.samtools} sort -O bam -o {output}"
 
 rule index_bam:
 	input:
-		"processed_bams/{sample}.{genome}.mkdup.sorted.bam"
+		"processed_bams/{sample}.{genome}.sorted.bam"
 	output:
-		"processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai"
+		"processed_bams/{sample}.{genome}.sorted.bam.bai"
 	params:
-		samtools = samtools_path
+		samtools = samtools_path,
+		threads = 4,
+		mem = 16,
+		t = very_short
+	shell:
+		"{params.samtools} index {input}"
+
+rule picard_mkdups:
+	input:
+		bam = "processed_bams/{sample}.{genome}.sorted.bam",
+		bai = "processed_bams/{sample}.{genome}.sorted.bam.bai"
+	output:
+		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
+		metrics = "stats/{sample}.{genome}.picard_mkdup_metrics.txt"
+	params:
+		picard = picard_path,
+		threads = 8,
+		mem = 24,
+		t = long,
+		tmp_dir = temp_directory
+	shell:
+		"{params.picard} -Xmx14g -Djava.io.tmpdir={params.tmp_dir} "
+		"MarkDuplicates I={input.bam} O={output.bam} "
+		"M={output.metrics} ASSUME_SORT_ORDER=coordinate"
+
+rule index_bam:
+	input:
+		"processed_bams/{sample}.{genome}.sorted.mkdup.bam"
+	output:
+		"processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai"
+	params:
+		samtools = samtools_path,
+		threads = 4,
+		mem = 16,
+		t = very_short
 	shell:
 		"{params.samtools} index {input}"
 
 rule gatk_indel_target_creator:
 	input:
-		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
-		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
-		ref = "new_reference/{genome}.fasta"
+		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
+		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai",
+		ref = "reference/{genome}.fasta"
 	output:
 		"indel_targets/{sample}.{genome}.intervals"
 	params:
-		gatk3 = gatk3_path
+		gatk3 = gatk3_path,
+		threads = 4,
+		mem = 12,
+		t = long
 	shell:
 		"java -jar -Xmx12g {params.gatk3} -T RealignerTargetCreator "
 		"-R {input.ref} -I {input.bam} -o {output}"
 
 rule gatk_indel_realignment:
 	input:
-		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.bam",
-		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.bam.bai",
-		ref = "new_reference/{genome}.fasta",
+		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
+		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai",
+		ref = "reference/{genome}.fasta",
 		indels = "indel_targets/{sample}.{genome}.intervals"
 	output:
-		"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam"
+		"processed_bams/{sample}.{genome}.sorted.mkdup.realigned.bam"
 	params:
-		gatk3 = gatk3_path
+		gatk3 = gatk3_path,
+		threads = 4,
+		mem = 12,
+		t = long
 	shell:
 		"java -jar -Xmx12g {params.gatk3} -T IndelRealigner "
 		"-R {input.ref} -I {input.bam} -targetIntervals {input.indels} -o {output}"
 
 rule index_realigned_bam:
 	input:
-		"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam"
+		"processed_bams/{sample}.{genome}.sorted.mkdup..realigned.bam"
 	output:
-		"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam.bai"
+		"processed_bams/{sample}.{genome}.sorted.mkdup..realigned.bam.bai"
 	params:
-		samtools = samtools_path
+		samtools = samtools_path,
+		threads = 4,
+		mem = 16,
+		t = very_short
 	shell:
 		"{params.samtools} index {input}"
 
 rule bam_stats:
 	input:
-		bam = "processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam",
-		bai = "processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam.bai"
+		bam = "processed_bams/{sample}.{genome}.sorted.mkdup..realigned.bam",
+		bai = "processed_bams/{sample}.{genome}.sorted.mkdup..realigned.bam.bai"
 	output:
 		"stats/{sample}.{genome}.mkdup.sorted.realigned.bam.stats"
 	params:
-		samtools = samtools_path
+		samtools = samtools_path,
+		threads = 4,
+		mem = 16,
+		t = very_short
 	shell:
 		"{params.samtools} stats {input.bam} | grep ^SN | cut -f 2- > {output}"
 
-rule create_angsd_bam_list:
-	input:
-		bam = lambda wildcards: expand(
-			"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam",
-			samples=config["samples"],
-			genome=wildcards.scaffold),
-	output:
-		"angsd_results/{genome}_angsd_bam_list.txt"
-	run:
-		shell("echo -n > {output}")
-		for i in input.bam:
-			shell("echo {} >> {{output}}".format(i))
-
-rule angsd_by_chom_all_sites:
-	input:
-		bam = lambda wildcards: expand(
-			"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam",
-			samples=config["samples"],
-			genome=wildcards.scaffold),
-		bai = expand(
-			"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam.bai",
-			samples=config["samples"],
-			genome=wildcards.scaffold),
-		bam_list = "angsd_results/{genome}_angsd_bam_list.txt"
-	output:
-		geno = "angsd_results/gaga_gmor_angsd_{scaffold}.geno.gz",
-		maf = "angsd_results/gaga_gmor_angsd_{scaffold}.mafs.gz"
-	params:
-		angsd = angsd_path,
-		full_scaffold_name = lambda wildcards: config["scaffold_dict"][wildcards.scaffold],
-		ninds = len(config["samples"]),
-		minind = 10,
-		mindepth = 40
-	threads:
-		8
-	shell:
-		"{params.angsd} -bam {input.bam_list} -GL 1 "
-		"-out angsd_results/gaga_gmor_angsd_{wildcards.scaffold} -P {threads} "
-		"-doMaf 1 -doMajorMinor 1 -doGeno 32 -doPost 1 -nind {params.nind} "
-		"-minMapQ 20 -minQ 20 -minInd {params.minind} -skipTriallelic 1"
-		"-setMinDepth {params.mindepth} -r '{params.full_scaffold_name}':"
-
-rule gunzip_angsd_mafs:
-	input:
-		"angsd_results/gaga_gmor_angsd_{scaffold}.mafs.gz"
-	output:
-		"angsd_results/gaga_gmor_angsd_{scaffold}.mafs"
-	shell:
-		"gunzip {input}"
-
-rule gunzip_angsd_geno:
-	input:
-		"angsd_results/gaga_gmor_angsd_{scaffold}.geno.gz"
-	output:
-		temp("angsd_results/gaga_gmor_angsd_{scaffold}.geno")
-	shell:
-		"gunzip {input}"
-
-rule concat_angsd_geno:
-	input:
-		expand(
-			"angsd_results/gaga_gmor_angsd_{scaffold}.geno",
-			scaffold=scaffolds_to_analyze)
-	output:
-		"angsd_results/all_angsd_CONCATENATED.geno"
-	shell:
-		"cat {input} > {output}"
-
-rule combine_angsd_mafs:
-	input:
-		expand(
-			"angsd_results/gaga_gmor_angsd_{scaffold}.mafs",
-			scaffold=scaffolds_to_analyze)
-	output:
-		"angsd_results/all_angsd_CONCATENATED.mafs"
-	run:
-		first = input[0]
-		shell(
-			"zcat {first} | head -n 1 > {output} && "
-			"awk 'FNR-1' {input} >> {output}")
-
-rule ngs_covar_by_chrom:
-	input:
-		geno = "angsd_results/all_angsd_CONCATENATED.geno",
-		mafs = "angsd_results/all_angsd_CONCATENATED.mafs"
-	output:
-		"angsd_results/all_angsd_CONCATENATED.covar"
-	params:
-		ngscovar = ngscovar_path,
-		ninds = len(config["samples"]),
-	shell:
-		"{params.ngscovar} -probfile {input.geno} -outfile {output} "
-		"-nsites $(tail -n +2 {input.mafs}) -nind {params.ninds} -call 0 -norm 0 "
-		"-block_size 100000 -minmaf 0.01"
+# rule create_angsd_bam_list:
+# 	input:
+# 		bam = lambda wildcards: expand(
+# 			"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam",
+# 			samples=config["samples"],
+# 			genome=wildcards.scaffold),
+# 	output:
+# 		"angsd_results/{genome}_angsd_bam_list.txt"
+# 	run:
+# 		shell("echo -n > {output}")
+# 		for i in input.bam:
+# 			shell("echo {} >> {{output}}".format(i))
+#
+# rule angsd_by_chom_all_sites:
+# 	input:
+# 		bam = lambda wildcards: expand(
+# 			"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam",
+# 			samples=config["samples"],
+# 			genome=wildcards.scaffold),
+# 		bai = expand(
+# 			"processed_bams/{sample}.{genome}.mkdup.sorted.realigned.bam.bai",
+# 			samples=config["samples"],
+# 			genome=wildcards.scaffold),
+# 		bam_list = "angsd_results/{genome}_angsd_bam_list.txt"
+# 	output:
+# 		geno = "angsd_results/gaga_gmor_angsd_{scaffold}.geno.gz",
+# 		maf = "angsd_results/gaga_gmor_angsd_{scaffold}.mafs.gz"
+# 	params:
+# 		angsd = angsd_path,
+# 		full_scaffold_name = lambda wildcards: config["scaffold_dict"][wildcards.scaffold],
+# 		ninds = len(config["samples"]),
+# 		minind = 10,
+# 		mindepth = 40
+# 	threads:
+# 		8
+# 	shell:
+# 		"{params.angsd} -bam {input.bam_list} -GL 1 "
+# 		"-out angsd_results/gaga_gmor_angsd_{wildcards.scaffold} -P {threads} "
+# 		"-doMaf 1 -doMajorMinor 1 -doGeno 32 -doPost 1 -nind {params.nind} "
+# 		"-minMapQ 20 -minQ 20 -minInd {params.minind} -skipTriallelic 1"
+# 		"-setMinDepth {params.mindepth} -r '{params.full_scaffold_name}':"
+#
+# rule gunzip_angsd_mafs:
+# 	input:
+# 		"angsd_results/gaga_gmor_angsd_{scaffold}.mafs.gz"
+# 	output:
+# 		"angsd_results/gaga_gmor_angsd_{scaffold}.mafs"
+# 	shell:
+# 		"gunzip {input}"
+#
+# rule gunzip_angsd_geno:
+# 	input:
+# 		"angsd_results/gaga_gmor_angsd_{scaffold}.geno.gz"
+# 	output:
+# 		temp("angsd_results/gaga_gmor_angsd_{scaffold}.geno")
+# 	shell:
+# 		"gunzip {input}"
+#
+# rule concat_angsd_geno:
+# 	input:
+# 		expand(
+# 			"angsd_results/gaga_gmor_angsd_{scaffold}.geno",
+# 			scaffold=scaffolds_to_analyze)
+# 	output:
+# 		"angsd_results/all_angsd_CONCATENATED.geno"
+# 	shell:
+# 		"cat {input} > {output}"
+#
+# rule combine_angsd_mafs:
+# 	input:
+# 		expand(
+# 			"angsd_results/gaga_gmor_angsd_{scaffold}.mafs",
+# 			scaffold=scaffolds_to_analyze)
+# 	output:
+# 		"angsd_results/all_angsd_CONCATENATED.mafs"
+# 	run:
+# 		first = input[0]
+# 		shell(
+# 			"zcat {first} | head -n 1 > {output} && "
+# 			"awk 'FNR-1' {input} >> {output}")
+#
+# rule ngs_covar_by_chrom:
+# 	input:
+# 		geno = "angsd_results/all_angsd_CONCATENATED.geno",
+# 		mafs = "angsd_results/all_angsd_CONCATENATED.mafs"
+# 	output:
+# 		"angsd_results/all_angsd_CONCATENATED.covar"
+# 	params:
+# 		ngscovar = ngscovar_path,
+# 		ninds = len(config["samples"]),
+# 	shell:
+# 		"{params.ngscovar} -probfile {input.geno} -outfile {output} "
+# 		"-nsites $(tail -n +2 {input.mafs}) -nind {params.ninds} -call 0 -norm 0 "
+# 		"-block_size 100000 -minmaf 0.01"
 
 # rule create_interval_file_for_genomicsdbimport:
 # 	input:
