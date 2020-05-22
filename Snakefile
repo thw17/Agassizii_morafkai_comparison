@@ -236,7 +236,7 @@ rule picard_mkdups:
 		"MarkDuplicates I={input.bam} O={output.bam} "
 		"M={output.metrics} ASSUME_SORT_ORDER=coordinate"
 
-rule index_bam:
+rule index_mkdup_bam:
 	input:
 		"processed_bams/{sample}.{genome}.sorted.mkdup.bam"
 	output:
