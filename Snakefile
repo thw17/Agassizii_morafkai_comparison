@@ -57,19 +57,18 @@ rule all:
 
 rule download_reference:
 	output:
-		"reference/{genome}.fa"
+		"reference/{genome}.fasta"
 	params:
 		web_address = lambda wildcards: config["fasta_address"][wildcards.genome],
-		output = "reference/{genome}.fa",
 		threads = 1,
 		mem = 4,
 		t = very_short
 	shell:
-		"wget {params.web_address} -O {params.output}"
+		"wget {params.web_address} -O {output}"
 
 rule prepare_reference:
 	input:
-		ref = "reference/{assembly}.fa"
+		ref = "reference/{assembly}.fasta"
 	output:
 		fai = "reference/{assembly}.fasta.fai",
 		amb = "reference/{assembly}.fasta.amb",
