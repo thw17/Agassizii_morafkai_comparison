@@ -2,7 +2,7 @@ configfile: "gopherus_config.json"
 
 # These paths will need to be changed (also check reference path in gopherus_config.json)
 
-gatk3_path = "GenomeAnalysisTK_381.jar"
+gatk3_path = "GenomeAnalysisTK_37.jar"
 
 temp_directory = "temp"
 fastq_directory = "fastqs"
@@ -249,55 +249,55 @@ rule index_mkdup_bam:
 	shell:
 		"{params.samtools} index {input}"
 
-# rule gatk_indel_target_creator:
-# 	input:
-# 		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
-# 		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai",
-# 		ref = "reference/{genome}.fasta"
-# 	output:
-# 		"indel_targets/{sample}.{genome}.intervals"
-# 	params:
-# 		gatk3 = gatk3_path,
-# 		threads = 4,
-# 		mem = 12,
-# 		t = long
-# 	shell:
-# 		"java -jar -Xmx12g {params.gatk3} -T RealignerTargetCreator "
-# 		"-R {input.ref} -I {input.bam} -o {output}"
-#
-# rule gatk_indel_realignment:
-# 	input:
-# 		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
-# 		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai",
-# 		ref = "reference/{genome}.fasta",
-# 		indels = "indel_targets/{sample}.{genome}.intervals"
-# 	output:
-# 		"processed_bams/{sample}.{genome}.sorted.mkdup.realigned.bam"
-# 	params:
-# 		gatk3 = gatk3_path,
-# 		threads = 4,
-# 		mem = 12,
-# 		t = long
-# 	shell:
-# 		"java -jar -Xmx12g {params.gatk3} -T IndelRealigner "
-# 		"-R {input.ref} -I {input.bam} -targetIntervals {input.indels} -o {output}"
-
-rule gatk_leftalignindels:
+rule gatk_indel_target_creator:
 	input:
 		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
 		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai",
 		ref = "reference/{genome}.fasta"
 	output:
-		"processed_bams/{sample}.{genome}.sorted.mkdup.realigned.bam"
+		"indel_targets/{sample}.{genome}.intervals"
 	params:
-		temp_dir = temp_directory,
-		gatk = gatk_path,
+		gatk3 = gatk3_path,
 		threads = 4,
 		mem = 12,
 		t = long
 	shell:
-		"""{params.gatk} --java-options "-Xmx12g -Djava.io.tmpdir={params.temp_dir}" """
-		"""LeftAlignIndels -R {input.ref} -I {input.bam} -O {output}"""
+		"java -jar -Xmx12g {params.gatk3} -T RealignerTargetCreator "
+		"-R {input.ref} -I {input.bam} -o {output}"
+
+rule gatk_indel_realignment:
+	input:
+		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
+		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai",
+		ref = "reference/{genome}.fasta",
+		indels = "indel_targets/{sample}.{genome}.intervals"
+	output:
+		"processed_bams/{sample}.{genome}.sorted.mkdup.realigned.bam"
+	params:
+		gatk3 = gatk3_path,
+		threads = 4,
+		mem = 12,
+		t = long
+	shell:
+		"java -jar -Xmx12g {params.gatk3} -T IndelRealigner "
+		"-R {input.ref} -I {input.bam} -targetIntervals {input.indels} -o {output}"
+
+# rule gatk_leftalignindels:
+# 	input:
+# 		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
+# 		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai",
+# 		ref = "reference/{genome}.fasta"
+# 	output:
+# 		"processed_bams/{sample}.{genome}.sorted.mkdup.realigned.bam"
+# 	params:
+# 		temp_dir = temp_directory,
+# 		gatk = gatk_path,
+# 		threads = 4,
+# 		mem = 12,
+# 		t = long
+# 	shell:
+# 		"""{params.gatk} --java-options "-Xmx12g -Djava.io.tmpdir={params.temp_dir}" """
+# 		"""LeftAlignIndels -R {input.ref} -I {input.bam} -O {output}"""
 
 rule index_realigned_bam:
 	input:
