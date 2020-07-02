@@ -372,7 +372,7 @@ rule combine_gvcfs_per_chrom:
 		ref = "reference/{genome}.fasta",
 		gvcfs = lambda wildcards: expand(
 			"gvcf/{sample}.{genome}.{chrom}.g.vcf.gz",
-			sample=config["sample_names"],
+			sample=config["samples"],
 			genome=[wildcards.genome], chrom=[wildcards.chrom])
 	output:
 		v = "gvcf_combined/combined.{genome}.{chrom}.g.vcf.gz"
