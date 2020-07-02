@@ -35,7 +35,7 @@ fastq_prefixes = [
 
 
 # Set chromosomes to analyze
-scaffolds_to_analyze = []
+chroms_to_analyze = config["scaffolds_to_analyze"]
 
 # Pipeline
 rule all:
@@ -45,6 +45,12 @@ rule all:
 		expand(
 			"stats/{sample}.{genome}.mkdup.sorted.realigned.bam.stats",
 			sample=config["samples"], genome=["gopaga20"]),
+		expand(
+			"mosdepth_results/{sample}.{genome}.total.total.nodups_mapq30.mosdepth.summary.txt",
+			sample=config["samples"], genome=["gopaga20"]),
+		expand(
+			"vcf_genotyped/{genome}.{chrom}.gatk.called.raw.vcf.gz",
+			genome=["gopaga20"], chrom=chroms_to_analyze)
 		# "angsd_results/all_angsd_CONCATENATED.covar"
 		# expand(
 		# 	"gvcf_databases/{comparison}-{genome}-{chrom}",
@@ -325,6 +331,80 @@ rule bam_stats:
 		t = very_short
 	shell:
 		"{params.samtools} stats {input.bam} | grep ^SN | cut -f 2- > {output}"
+
+rule mosdepth_total:
+	input:
+		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
+		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai"
+	output:
+		"mosdepth_results/{sample}.{genome}.total.total.nodups_mapq30.mosdepth.summary.txt"
+	params:
+		mosdepth = mosdepth_path,
+		prefix = "mosdepth_results/{sample}.{genome}.total.total.nodups_mapq30",
+		threads = 4,
+		mem = 16,
+		t = long
+	shell:
+		"{params.mosdepth} --fast-mode -F 1024 --mapq 30 {params.prefix} {input.bam}"
+
+rule gatk_gvcf_per_chrom:
+	input:
+		ref = "reference/{genome}.fasta",
+		bam = "processed_bams/{sample}.{genome}.sorted.mkdup.bam",
+		bai = "processed_bams/{sample}.{genome}.sorted.mkdup.bam.bai"
+	output:
+		"gvcf/{sample}.{genome}.{chrom}.g.vcf.gz"
+	params:
+		temp_dir = temp_directory,
+		gatk = gatk_path,
+		chr = "{chrom}",
+		threads = 4,
+		mem = 16,
+		t = long
+	shell:
+		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
+		"""HaplotypeCaller -R {input.ref} -I {input.bam} -L {params.chr} """
+		"""-ERC GVCF --do-not-run-physical-phasing -O {output}"""
+
+rule combine_gvcfs_per_chrom:
+	input:
+		ref = "reference/{genome}.fasta",
+		gvcfs = lambda wildcards: expand(
+			"gvcf/{sample}.{genome}.{chrom}.g.vcf.gz",
+			sample=config["sample_names"],
+			genome=[wildcards.genome], chrom=[wildcards.chrom])
+	output:
+		v = "gvcf_combined/combined.{genome}.{chrom}.g.vcf.gz"
+	params:
+		temp_dir = temp_directory,
+		gatk = gatk_path,
+		threads = 4,
+		mem = 16,
+		t = long
+	run:
+		variant_files = []
+		for i in input.gvcfs:
+			variant_files.append("--variant " + i)
+		variant_files = " ".join(variant_files)
+		shell(
+			"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
+			"""CombineGVCFs -R {input.ref} {variant_files} -O {output.v}""")
+
+rule gatk_genotypegvcf_per_chrom:
+	input:
+		ref = "reference/{genome}.fasta",
+		gvcf = "gvcf_combined/combined.{genome}.{chrom}.g.vcf.gz"
+	output:
+		"vcf_genotyped/{genome}.{chrom}.gatk.called.raw.vcf.gz"
+	params:
+		temp_dir = temp_directory,
+		gatk = gatk_path,
+		threads = 4,
+		mem = 16,
+		t = long
+	shell:
+		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
+		"""GenotypeGVCFs --include-non-variant-sites -R {input.ref} -V {input.gvcf} -O {output}"""
 
 # rule create_angsd_bam_list:
 # 	input:
