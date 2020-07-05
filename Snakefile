@@ -367,7 +367,47 @@ rule gatk_gvcf_per_chrom:
 		"""HaplotypeCaller -R {input.ref} -I {input.bam} -L {params.chr} """
 		"""-ERC GVCF --do-not-run-physical-phasing -O {output}"""
 
-rule combine_gvcfs_per_chrom:
+# rule combine_gvcfs_per_chrom:
+# 	input:
+# 		ref = "reference/{genome}.fasta",
+# 		gvcfs = lambda wildcards: expand(
+# 			"gvcf/{sample}.{genome}.{chrom}.g.vcf.gz",
+# 			sample=config["samples"],
+# 			genome=[wildcards.genome], chrom=[wildcards.chrom])
+# 	output:
+# 		v = "gvcf_combined/combined.{genome}.{chrom}.g.vcf.gz"
+# 	params:
+# 		temp_dir = temp_directory,
+# 		gatk = gatk_path,
+# 		threads = 4,
+# 		mem = 16,
+# 		t = long
+# 	run:
+# 		variant_files = []
+# 		for i in input.gvcfs:
+# 			variant_files.append("--variant " + i)
+# 		variant_files = " ".join(variant_files)
+# 		shell(
+# 			"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
+# 			"""CombineGVCFs -R {input.ref} {variant_files} -O {output.v}""")
+
+# rule gatk_genotypegvcf_per_chrom:
+# 	input:
+# 		ref = "reference/{genome}.fasta",
+# 		gvcf = "gvcf_combined/combined.{genome}.{chrom}.g.vcf.gz"
+# 	output:
+# 		"vcf_genotyped/{genome}.{chrom}.gatk.called.raw.vcf.gz"
+# 	params:
+# 		temp_dir = temp_directory,
+# 		gatk = gatk_path,
+# 		threads = 4,
+# 		mem = 16,
+# 		t = long
+# 	shell:
+# 		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
+# 		"""GenotypeGVCFs --include-non-variant-sites -R {input.ref} -V {input.gvcf} -O {output}"""
+
+rule gatk_genomicsdbimport_per_chrom:
 	input:
 		ref = "reference/{genome}.fasta",
 		gvcfs = lambda wildcards: expand(
@@ -375,7 +415,7 @@ rule combine_gvcfs_per_chrom:
 			sample=config["samples"],
 			genome=[wildcards.genome], chrom=[wildcards.chrom])
 	output:
-		v = "gvcf_combined/combined.{genome}.{chrom}.g.vcf.gz"
+		directory("gvcf_combined/combined.{genome}.{chrom}")
 	params:
 		temp_dir = temp_directory,
 		gatk = gatk_path,
@@ -389,12 +429,13 @@ rule combine_gvcfs_per_chrom:
 		variant_files = " ".join(variant_files)
 		shell(
 			"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
-			"""CombineGVCFs -R {input.ref} {variant_files} -O {output.v}""")
+			"""GenomicsDBImport -R {input.ref} {variant_files} --genomicsdb-workspace-path {output.v}"""
+			"""--intervals {wildcards.chrom}""")
 
-rule gatk_genotypegvcf_per_chrom:
+rule gatk_genotypegvcf_genomicsdbimport_per_chrom:
 	input:
 		ref = "reference/{genome}.fasta",
-		gvcf = "gvcf_combined/combined.{genome}.{chrom}.g.vcf.gz"
+		dbi = directory("gvcf_combined/combined.{genome}.{chrom}")
 	output:
 		"vcf_genotyped/{genome}.{chrom}.gatk.called.raw.vcf.gz"
 	params:
@@ -405,7 +446,7 @@ rule gatk_genotypegvcf_per_chrom:
 		t = long
 	shell:
 		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
-		"""GenotypeGVCFs --include-non-variant-sites -R {input.ref} -V {input.gvcf} -O {output}"""
+		"""GenotypeGVCFs --include-non-variant-sites -R {input.ref} -V gendb://{input.dbi} -O {output}"""
 
 # rule create_angsd_bam_list:
 # 	input:
