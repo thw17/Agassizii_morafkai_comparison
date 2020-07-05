@@ -429,7 +429,7 @@ rule gatk_genomicsdbimport_per_chrom:
 		variant_files = " ".join(variant_files)
 		shell(
 			"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
-			"""GenomicsDBImport -R {input.ref} {variant_files} --genomicsdb-workspace-path {output}"""
+			"""GenomicsDBImport -R {input.ref} {variant_files} --genomicsdb-workspace-path {output} """
 			"""--intervals {wildcards.chrom}""")
 
 rule gatk_genotypegvcf_genomicsdbimport_per_chrom:
