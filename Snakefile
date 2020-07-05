@@ -435,7 +435,7 @@ rule gatk_genomicsdbimport_per_chrom:
 rule gatk_genotypegvcf_genomicsdbimport_per_chrom:
 	input:
 		ref = "reference/{genome}.fasta",
-		dbi = directory("gvcf_combined/combined.{genome}.{chrom}")
+		dbi = rules.gatk_genomicsdbimport_per_chrom.output
 	output:
 		"vcf_genotyped/{genome}.{chrom}.gatk.called.raw.vcf.gz"
 	params:
