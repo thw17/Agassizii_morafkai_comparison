@@ -446,8 +446,7 @@ rule gatk_genotypegvcf_genomicsdbimport_per_chrom:
 		t = long
 	shell:
 		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
-		"""GenotypeGVCFs --include-non-variant-sites -R {input.ref} -V gendb://{input.dbi} -O {output} """
-		"""-L {wildcards.chrom}"""
+		"""GenotypeGVCFs -R {input.ref} -V gendb://{input.dbi} -O {output}"""
 
 # rule create_angsd_bam_list:
 # 	input:
