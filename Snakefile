@@ -15,6 +15,8 @@ long = "48:00:00"
 
 # These paths assume you've set up a Conda environment; change if not
 bbduksh_path = "bbduk.sh"
+bcftools_path = "bcftools"
+bgzip_path = "bgzip"
 bwa_path = "bwa"
 fastqc_path = "fastqc"
 gatk_path = "gatk"
@@ -22,6 +24,7 @@ mosdepth_path = "mosdepth"
 multiqc_path = "multiqc"
 picard_path = "picard"
 samtools_path = "samtools"
+tabix_path = "tabix"
 
 # Organize sample lists
 gmor = config["morafkai"]
@@ -38,6 +41,9 @@ fastq_prefixes = [
 # Set chromosomes to analyze
 chroms_to_analyze = config["scaffolds_to_analyze"]
 
+depths_to_analyze = ["4", "8", "10"]
+mapqs_to_analyze = ["30", "40"]
+
 # Pipeline
 rule all:
 	input:
@@ -50,7 +56,7 @@ rule all:
 			"mosdepth_results/{sample}.{genome}.total.total.nodups_mapq30.mosdepth.summary.txt",
 			sample=config["samples"], genome=["gopaga20"]),
 		expand(
-			"vcf_genotyped/{genome}.{chrom}.gatk.called.raw.vcf.gz",
+			"vcf_filtered/{genome}.{chrom}.gatk.called.dp{depth}_mq{mapq}.vcf.gz.tbi",
 			genome=["gopaga20"], chrom=chroms_to_analyze)
 		# "angsd_results/all_angsd_CONCATENATED.covar"
 		# expand(
@@ -447,6 +453,36 @@ rule gatk_genotypegvcf_genomicsdbimport_per_chrom:
 	shell:
 		"""{params.gatk} --java-options "-Xmx15g -Djava.io.tmpdir={params.temp_dir}" """
 		"""GenotypeGVCFs -R {input.ref} -V gendb://{input.dbi} -O {output}"""
+
+rule hard_filter_vcf:
+	input:
+		"vcf_genotyped/{genome}.{chrom}.gatk.called.raw.vcf.gz"
+	output:
+		"vcf_filtered/{genome}.{chrom}.gatk.called.dp{depth}_mq{mapq}.vcf.gz"
+	params:
+		bcftools = bcftools_path,
+		bgzip = bgzip_path,
+		threads = 4,
+		mem = 16,
+		t = long
+	shell:
+		"{params.bcftools} filter -i "
+		"'MQ >= {wildcards.mapq} && QD > 2' {input} | "
+		"{params.bcftools} filter -i 'FMT/DP >= {wildcards.depth} & FMT/GQ >= 30' -S . - | "
+		"{params.bgzip} > {output}"
+
+rule index_filtered_vcf:
+	input:
+		"vcf_filtered/{genome}.{chrom}.gatk.called.dp{depth}_mq{mapq}.vcf.gz"
+	output:
+		"vcf_filtered/{genome}.{chrom}.gatk.called.dp{depth}_mq{mapq}.vcf.gz.tbi"
+	params:
+		tabix = tabix_path,
+		threads = 4,
+		mem = 16,
+		t = long
+	shell:
+		"{params.tabix} -p vcf {input}"
 
 # rule create_angsd_bam_list:
 # 	input:
