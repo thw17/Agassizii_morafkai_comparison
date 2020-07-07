@@ -57,7 +57,8 @@ rule all:
 			sample=config["samples"], genome=["gopaga20"]),
 		expand(
 			"vcf_filtered/{genome}.{chrom}.gatk.called.dp{depth}_mq{mapq}.vcf.gz.tbi",
-			genome=["gopaga20"], chrom=chroms_to_analyze)
+			genome=["gopaga20"], chrom=chroms_to_analyze,
+			depth=depths_to_analyze, mapq=mapqs_to_analyze)
 		# "angsd_results/all_angsd_CONCATENATED.covar"
 		# expand(
 		# 	"gvcf_databases/{comparison}-{genome}-{chrom}",
